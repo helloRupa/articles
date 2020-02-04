@@ -228,3 +228,78 @@ I’m not going to say which sounds easier than the other, but I think you know 
 If we’re designing native apps or an API that will communicate with them, tokens seem like the way to go. There are a lot of debates regarding whether or not cookies should or can be used for authentication and authorization in native mobile apps. The short story is this: some say it’s easy to implement auth with cookies and others say it’s difficult, and a few say it’s impossible! It is possible to implement auth either way, but there does appear to be more support – including tutorials, out-of-the-box solutions, and opinions – for using tokens in native apps. As of writing, [React Native has issues with implementing fetch and cookie-based authentication](https://facebook.github.io/react-native/docs/network#known-issues-with-fetch-and-cookie-based-authentication). However, both iOS and Android native apps support the use of cookies.
 
 Whether the API uses cookies or tokens, the native app will have to explicitly send that data with each request and handle it, as needed, with every response.
+
+## Use Cases
+
+Here are some (and I mean some in a very small sense) examples illustrating when and why you might choose JWTs or cookie-based sessions, state or no state.
+
+Jarlo is working on a browser-based web app where users create cat dance parties using different gifs, music, and background images. Users save their dance parties to their accounts, so they can view, edit, and delete them later. When users sign up, they specify their own unique username and password. The site never asks for or stores any personal information that could be used to identify a specific user. Since the data stored on the website doesn’t have much value and can’t harm users in any meaningful way, Jarlo decides to implement sessions using stateless JWT. Even if a malicious user hijacks another user’s session, the worst they can do is view, edit, or delete that user’s dance parties, or prevent a user from accessing their largely worthless account (worthless from a data perspective).
+
+Sumya is creating a browser-based web app where users track their fitness goals and overall health. The app collects personal data, such as a user’s email, weight, height, and more. She doesn’t expect the app to grow beyond a small user base and doesn’t plan on expanding to native mobile apps. Since the data stored in the backend includes personal user data, Sumya decides to implement stateful sessions with secure http-only cookies. A malicious user could do a lot of damage, so Sumya needs full control over access on the backend.
+
+Charlie is expanding the number and types of web services the users of his company’s site have access to. This involves adding more servers to host the different services. There is currently no infrastructure in place for handling authorization across servers, since they’ve been running off of a single server until now. In the near future, they are planning to integrate their services with native mobile apps. Charlie decides to use stateless JWT to ensure only authorized users get access to the various services. He ensures that each token expires within a very short timeframe to limit any possible damage a malicious user can do.
+
+Bernice’s company runs a social networking site available via browsers and a native app. The site is already successfully using cookie-based sessions and sticky sessions to ensure users remain logged in when accessing different resources. The social network’s user base is growing, and they need to scale horizontally. Since they are already using sticky sessions successfully, they decide to stick with those – the time and expense of switching the auth infrastructure isn’t worth it at this time.
+
+Emilia is creating a publicly available API. She needs to ensure only authorized applications can access the API and wants to support as many devices as possible. Emilia decides to use stateful JWT to control access to the API. When the client sends a token with their request to the API, the client’s token is validated and looked up server-side. The client’s requests are tracked for billing purposes and rate limiting.
+
+## Conclusion
+
+Any time we want to implement authentication and authorization, we have to ask ourselves several questions:
+
+1. Who is the client?
+2. How valuable is the data we’re protecting? To our users and to us?
+3. What could a malicious user do if they gained access to another user’s account?
+4. How much, if any, information do we need about what our users are doing?
+5. How much control do we need over individual user sessions?
+6. Will different servers need to communicate with one another to complete requests?
+
+If the data stored is of low value and cannot be used to harm someone, stateless sessions with little-to-no backend control may be acceptable, and we can store the session data in a cookie or web storage. However, if fine-grained control over sessions is required, which will likely be the case if the data being accessed by clients is of high value, we must use stateful sessions. 
+
+How we choose to implement those sessions is up to us: we can make a case for storing session data in cookies or JWTs in browser storage. HttpOnly cookies will provide protection against XSS attacks, but require a little more work to configure for CORS requests, while JWTs in browser storage are easier to work with for CORS requests, but may be less secure than httpOnly cookies due to the threat of XSS attacks. That’s a lot to think about, and we’ve only scratched the surface!
+
+Now treat yourself to the smooth sounds of [Daybreak](https://www.youtube.com/watch?v=XXvuUp-KY5g).
+
+## Googleables
+SameSite cookies, encrypted cookies, JWT refresh token, JSON Web encryption, cross-domain SSO flow, XSS attack, CSRF attack, Redis sessions, microservice architecture, horizontal vs vertical app scaling, sticky session, load balancer, cookie headers, dancing peanut fail (just for fun)
+
+## Resources
+
+Introduction to JSON Web Tokens
+https://jwt.io/introduction/
+
+The Complete Guide to JSON Web Tokens
+https://blog.angular-university.io/angular-jwt/
+
+Sticky Session
+https://www.imperva.com/learn/availability/sticky-session-persistence-and-cookies/
+
+Stop Using JWT for Sessions
+http://cryto.net/~joepie91/blog/2016/06/13/stop-using-jwt-for-sessions/
+
+MDN Web Docs: HTTP Cookies
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+
+Cross-Origin Resource Sharing (CORS)
+https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+
+Understanding Cross-Origin Resource Sharing (CORS)
+https://dev.to/miguelmota/understanding-cross-origin-resource-sharing-cors-2i3e
+
+Where to Store Your JWTs: Cookies vs. HTML5 Web Storage
+https://stormpath.com/blog/where-to-store-your-jwts-cookies-vs-html5-web-storage
+
+Cookies vs. Tokens: The Definitive Guide
+https://dzone.com/articles/cookies-vs-tokens-the-definitive-guide
+
+Cookies in Mobile: Do they exist?
+https://www.socialmediatoday.com/content/cookies-mobile-do-they-exist
+
+Horizontal vs. Vertical Scaling: Which is Right for Your App?
+https://www.missioncloud.com/blog/horizontal-vs-vertical-scaling-which-is-right-for-your-app
+
+React Native Documentation: Networking
+https://facebook.github.io/react-native/docs/network
+
+Secure Yet Simple Authentication System for Mobile Applications
+https://readybytes.in/blog/secure-yet-simple-authentication-system-for-mobile-applications
