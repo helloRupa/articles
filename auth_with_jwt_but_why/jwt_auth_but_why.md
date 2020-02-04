@@ -111,6 +111,7 @@ BgnTL5iqjdvsC-LSCD9YNlmpcn6ppU7_OZWYj3uHoPs
 The signature is used to confirm that the token wasn’t tampered with before or during transmission. Once a server receives a JWT, it can confirm that the JWT is valid by running the encoded header and payload along with the secret through the hashing algorithm specified in the header to generate its signature. If the generated signature matches the received JWT’s signature, the JWT is valid. This will make more sense in a moment.
 
 **But why does it look like nonsense?**
+
 We write the header and payload as ordinary JSON, and then those parts are encoded using the base64url encoding scheme, which basically spits out strings that look like gibberish. After that, the signature needs to be created. To make the signature, the encoded header and payload are hashed with a secret (another nonsensical-looking string) using a hashing algorithm, which is specified in the header. The hashed string is then encoded in the same manner as the header and payload. The secret, provided it remains a secret, makes it difficult for malicious users to forge or tamper with a JWT, since they need the secret to generate a valid signature. If you’re familiar with password salting, you can think of the secret as being similar to the salt.
 
 ![JWT Signature Diagram](./images/signature.png)
