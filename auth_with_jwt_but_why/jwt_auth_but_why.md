@@ -187,3 +187,44 @@ When creating browser-based apps, cookies have the added convenience of automati
 
 Lastly, some organizations advise against storing session identifiers and sensitive information in web storage at all due to the threat of XSS attacks, which they estimate is a larger threat than CSRF attacks.
 
+## Cross-Origin Resource Sharing (CORS)
+
+![Dancing cat](https://i.imgur.com/KGDOjbf.gif)
+
+Web apps commonly request resources from other domains, e.g. catdanceparty.com might request images from catpartyimages.com. Or the frontend and backend might be hosted on two different servers. In either case, you’re going to end up with a good ol’ CORS request! You probably know them well, they’re those requests that fill your developer console with all kinds of fun errors, like this famous ditty: 
+```
+Cross-Origin Request Blocked: 
+The Same Origin Policy disallows 
+reading the remote resource at 
+https://dancemagicdance.com/
+```
+
+Pure poetry!
+
+Those CORS request errors occur when a request to one domain comes from a completely different domain. The server that receives the request has control over which other domains, if any, can access its resources. When we set up a new project using a framework like Rails, CORS requests are disallowed on the server-side by default (It’s actually the browser that enforces the policy, but the server sets the rules). We’re not going to go into detail about server-side settings – just know that we can allow a single domain, all domains, or whitelisted domains to make requests, and that certain requests require cookies or tokens to be sent along with them in order for the client to receive a successful response. Any server that is expected to receive CORS requests must be configured to allow them.
+
+**CORS requests with httpOnly cookies**
+
+Let’s say our server is configured to accept third-party requests, but data stored in a cookie is required for the request to receive a successful response. We are on catdanceparty.com, and from that page, a request is made to secretcatdances.co.uk (CORS request) to retrieve some super secret cat dance gifs. Since we are making a request to a different domain, none of catdanceparty.com’s cookies are sent by the browser, so the request is unsuccessful. An error appears in our browser. To remedy this, there are a couple of things we must do.
+
+On the server-side, when it sets the cookie on the client, the cookie’s domain/path properties will have to be set in order to tell the browser where that cookie is allowed to be sent.
+
+On the client-side, we must tell the browser that we want to send credentials with the request. When making a fetch request, we set ‘credentials’ to ‘include’ (in an XMLHTTPRequest, we would set ‘withCredentials’ to ‘true’). As long as the server is configured to receive CORS requests, and the cookie and request have been set properly, the request should result in a successful response.
+
+**CORS requests with tokens in web storage**
+
+Once again, our server is configured to accept CORS requests, but this time we’ve stored our authorization data in a JWT in web storage, instead of an httpOnly cookie. Since the token is accessible by JavaScript, we use JavaScript to access the token and add it to the Authorization header with our request to secretcatdances.co.uk. The CORS request completes with a successful response from secretcatdances.co.uk.
+
+**Summary**
+
+I’m not going to say which sounds easier than the other, but I think you know which one I’m thinking of.
+
+![Oprah hands out tokens](./images/oprah.png)
+
+*I’m sorry, I couldn’t help it.*
+
+## Native app auth
+
+If we’re designing native apps or an API that will communicate with them, tokens seem like the way to go. There are a lot of debates regarding whether or not cookies should or can be used for authentication and authorization in native mobile apps. The short story is this: some say it’s easy to implement auth with cookies and others say it’s difficult, and a few say it’s impossible! It is possible to implement auth either way, but there does appear to be more support – including tutorials, out-of-the-box solutions, and opinions – for using tokens in native apps. As of writing, [React Native has issues with implementing fetch and cookie-based authentication](https://facebook.github.io/react-native/docs/network#known-issues-with-fetch-and-cookie-based-authentication). However, both iOS and Android native apps support the use of cookies.
+
+Whether the API uses cookies or tokens, the native app will have to explicitly send that data with each request and handle it, as needed, with every response.
