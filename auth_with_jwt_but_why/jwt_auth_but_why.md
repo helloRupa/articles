@@ -21,7 +21,7 @@ That’s not what this is. Move along buddy...or stay and enjoy some good ol’-
 
 **I noticed a mistake in the article**
 
-![You Ought to Know](/images/you-ought-to-know.jpg)
+![You Ought to Know](./images/you-ought-to-know.jpg)
 
 Tell me about it. Seriously. Very seriously.
 
