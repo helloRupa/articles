@@ -1,5 +1,7 @@
 # Rails: Create Multiple Records For a Single Model in a Single Request
-Creating multiple entries in a database using Rails is easier than it seems. We can even ensure that if one fails, our database gets rolled back to its previous state! Ooh la la. And one of the most beautiful parts is that we don't have to iterate over anything!! Note that this article talks about creating many records in a single table (model), not many tables (models). Also, this isn't a batch SQL insert: I'll include a note about that at the end.
+Creating multiple entries in a database from a single HTTP request using Rails is easier than it seems. We can even ensure that if one fails, our database gets rolled back to its previous state! Ooh la la.
+
+Note that this article talks about creating many records in a single table (model), not many tables (models). Also, this isn't a batch SQL insert: I'll include a note about that at the end. If you read the whole thing, expect to learn quite a bit about `create(!)` and parameters.
 
 ## What Do We Want to Do?
 Let's say we have a table storing Band data, and we want the ability to add several new Bands to this table from the frontend (JavaScript) using a fetch request. Our initial idea might be to loop through all of the new Band data on the frontend and send one fetch request per Band. However, this results in sending more fetch requests than necessary. Instead, we can actually add all of the new Bands using a single fetch request, which reduces the number of requests our server must handle.
@@ -102,4 +104,169 @@ When model validations are present and only valid records exist in the Array, `c
 
 > Note: the specific exception that's raised differs when handling a failed column validation vs a failed model validation!
 
+## Accepting Arrays from HTTP Requests
+Now that we know the differences between the two creates (it's important, I promise!), we can move on to our BandController. We're probably pretty used to creating a single record where our parameters are expecting to parse out a simple Hash of data:
+```
+def create
+  band = Band.new(band_params)
 
+  if band.save
+    render json: band
+  else
+    render json: { errors: band.errors.full_messages }
+  end
+end
+
+private
+
+def band_params
+  params.require(:band).permit(:name, :year)
+end
+```
+
+The code above is pretty straightforward: `band_params` parses the parameters from the request and returns a Hash, which `Band.new` uses to create a new Band object. That object can either be saved to the database or not depending on its validity. So how do we change this to accept an Array of Bands instead of a single Band.
+
+**Updating the strong params**
+First, our strong parameters need to be updated to accept an Array of data. Instead of going straight to updating the controller, let's play with `Parameters` in the Rails console. We'll create a new `Parameters` object using the same data format we expect to receive from the frontend:
+
+```
+bands = { bands: [{ name: "Radiohead", year: 1985 }, { name: "Refused", year: 1991 }] }
+params = ActionController::Parameters.new(bands)
+# => <ActionController::Parameters {"bands"=>[{"name"=>"Radiohead", "year"=>1985}, {"name"=>"Refused", "year"=>1991}]} permitted: false>
+```
+
+Now let's try running these parameters through our regular strong parameters method that expects to receive a Hash...just for fun (because there's no chance it's going to work! I know how to have fun so hard.):
+```
+params.require(:band).permit(:name, :year)
+# => ActionController::ParameterMissing (param is missing or the value is empty: band)
+
+params.require(:bands).permit(:name, :year)
+# => NoMethodError (undefined method `permit' for #<Array:0x00007fc530ea8880>)
+```
+
+In both cases, exceptions were raised. First, it was because the required parameter/key `band` was missing. In the second case, we updated the requirement to `bands`, but we received an error stating that `permit` can't be called on an Array. This means that calling `require` returned an Array, and `permit` just wasn't into any of this business. 
+
+This is actually important to keep in mind. When `require` is called on the parameters in this example, it returns the value associated with the `bands` key, which happens to be an Array. In other words, `require` returns values, and not key-value pairs.
+
+So how can we fix this? Well, what if we just get rid of `require` and tell `permit` to accept an Array of data:
+```
+params.permit(bands: [:name, :year])
+# => <ActionController::Parameters {"bands"=>[<ActionController::Parameters {"name"=>"Radiohead", "year"=>1985} permitted: true>, <ActionController::Parameters {"name"=>"Refused", "year"=>1991} permitted: true>]} permitted: true> 
+```
+
+We didn't get an error, but this still isn't quite what we want. We now have a `Parameters` object that has our Band data attributed with a `bands` key in a Hash. Both `create(!)`s are expecting an Array. Let's give it a whirl to check our hypothesis:
+
+```
+Band.create(params.permit(bands: [:name, :year]))
+# => ActiveModel::UnknownAttributeError (unknown attribute 'bands' for Band.)
+```
+
+Our good ol' friend the exception is telling us that our hypothesis was right. So what can we do to fix this? Hmm, I think our bestie `require` can step in and help here. `require` will return the value associated with the `bands` key, so let's chain that on and see what happens:
+```
+params.permit(bands: [:name, :year]).require(:bands)
+# => [<ActionController::Parameters {"name"=>"Radiohead", "year"=>1985} permitted: true>, <ActionController::Parameters {"name"=>"Refused", "year"=>1991} permitted: true>] 
+
+Band.create(params.permit(bands: [:name, :year]).require(:bands))
+# => Created the records
+```
+
+Wow! That worked!! We called `permit` first, so that we could accept an Array of data. That returned a `Parameters` object containing more `Parameters` structured as a Hash. To get the Array associated with the `bands` attribute from there, we just had to call `require`. Not too shabby.
+
+We can now update our strong parameters method like so:
+```
+# changed the method's name, FYI
+def bands_params
+  params.permit(bands: [:name, :year]).require(:bands)
+end
+```
+
+> Note: For this example, I'm assuming all requests will pass an Array of Bands. If we wanted to accept both Arrays and Hashes, we could set up a separate route or use additional logic in the `create` action to handle both types of data.
+
+**Updating the create action**
+Our `create` action is currently expecting to add a single record to the database. We'll need to change this so that it creates multiple records. Here is our code so far with the updated strong params method:
+```
+def create
+  band = Band.new(band_params)
+
+  if band.save
+    render json: band
+  else
+    render json: { errors: band.errors.full_messages }
+  end
+end
+
+private
+
+def bands_params
+  params.permit(bands: [:name, :year]).require(:bands)
+end
+```
+
+This most certainly is not going to work...at all.
+
+At the moment, our Rails project has database-level validations (column modifiers) and model validations. This means that any invalid requests will fail on the model validations, since they directly mirror the column modifiers. We need to keep this in mind as we move forward, since it affects how we handle requests.
+
+First, let's try making the simplest change we can think of to our `create` action:
+```
+def create
+  bands = Band.create(bands_params)
+  render json: bands
+end
+```
+
+First we'll see what happens when we send only valid data:
+```
+options = {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ bands: [ 
+    { name: 'oh yeah', year: 3000 }, 
+    { name: 'wee bitz', year: 1980 } ] 
+  })
+}
+
+fetch('http://localhost:3000/bands', options)
+  .then(res => res.json())
+  .then(console.log)
+  .catch(console.log)
+// => Array of Hashes representing Band objects with IDs set
+```
+
+Sending only valid data, resulted in all of our records being created and an Array of data being sent back in response. But what will happen if we send a mix of valid and invalid data?:
+```
+options = {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ bands: [ 
+    { name: 'i am first', year: 1 }, 
+    { name: 'so invalid it hurts' } ] 
+  })
+}
+
+fetch('http://localhost:3000/bands', options)
+  .then(res => res.json())
+  .then(console.log)
+  .catch(console.log)
+// => Array of Hashes representing Band objects with one ID set and one set to null
+```
+
+Both records were returned regardless, but only one was created in the database. On the frontend, we could choose to pinpoint the bad records, fix them, and then resend our request, but I'd prefer to go a different route: let's handle our requests in an all or nothing manner. All records must be valid for any insertions to persist. 
+
+## Creating Records via Transactions
+We're about to make a new friend: a class method called `transaction`. Transactions are protective blocks that help protect the integrity of a database. Any SQL statements executed inside a transaction will persist only if all of the SQL statements were executed successfully. A single failure will cause the database to roll back to its previous state. In other words, it's all or nothing!
+
+For the transaction to do its job, we have to raise an exception when an insertion fails (The API documentation is really beautiful when it comes to transactions). This means we have to say goodbye to our friend `create` and make `create!` our new bestie. Let's modify our controller code to utilize transactions:
+
+```
+def create
+  Band.transaction do
+    # using an instance variable to make it available to render
+    # otherwise we'd have to declare bands in the outer scope as nil
+    @bands = Band.create(bands_params)
+  end
+    
+  render json: @bands
+end
+```
+
+After sending a fetch request with only valid data, we receive the response we expect: an Array of Hashes containing valid Band records. But what happens if there's invalid data in the request?
