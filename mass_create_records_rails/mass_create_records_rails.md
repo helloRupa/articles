@@ -2,7 +2,7 @@
 Creating multiple entries in a database using Rails is easier than it seems. We can even ensure that if one fails, our database gets rolled back to its previous state! Ooh la la. And one of the most beautiful parts is that we don't have to iterate over anything!! Note that this article talks about creating many records in a single table (model), not many tables (models). Also, this isn't a batch SQL insert: I'll include a note about that at the end.
 
 ## What Do We Want to Do?
-Let's say we have a table storing Band data, and we want the ability to add several new Bands to this table from the frontend (JavaScript) using a fetch request. Our initial idea might be to loop through all of the new Band data on the frontend and send one fetch request per Band. However, this results in sending more fetch requests than necessary. Instead, we can actually add all of the new Bands using a single fetch request, which reduces the load on our server.
+Let's say we have a table storing Band data, and we want the ability to add several new Bands to this table from the frontend (JavaScript) using a fetch request. Our initial idea might be to loop through all of the new Band data on the frontend and send one fetch request per Band. However, this results in sending more fetch requests than necessary. Instead, we can actually add all of the new Bands using a single fetch request, which reduces the number of requests our server must handle.
 
 The fetch request we're aiming for might look something like this:
 ```
@@ -17,19 +17,20 @@ const options = {
 To do this easily, we first need to take a look at our old class method friends `create` and `create!`. Commonly, we use these methods to create a single entry in a database by passing a Hash as an argument:
 ```
 Band.create(name: "Nite Fields", year: 2012)
-# Band.create!(name: "Nite Fields", year: 2012)
+Band.create!(name: "Nite Fields", year: 2012)
 ```
 
 However, we can also pass an Array of Hashes to create several records at once:
 ```
 Band.create([{ name: "Nite Fields", year: 2012 }, { name: "Refused", year: 1991 }])
-# Band.create!([{ name: "Nite Fields", year: 2012 }, { name: "Refused", year: 1991 }])
+Band.create!([{ name: "Nite Fields", year: 2012 }, { name: "Refused", year: 1991 }])
 ```
 
 But the question is: what happens if some of the records in the Array are valid and others are not? Will the valid records be created anyway? Luckily, this is easy to test. We can attempt to create several valid records, and then attempt to create a mix of invalid and valid records all at once:
 ```
 # VALID RECORDS ONLY
 Band.create([{ name: "Nite Fields", year: 2012 }, { name: "Refused", year: 1991 }])
+
 # ONE INVALID RECORD
 Band.create([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222 }])
 ```
@@ -76,7 +77,9 @@ Band.create!([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { n
 ```
 This is actually similar to before. As soon as an invalid record was encountered, the process was aborted. The Blah Blahs, sadly, are still floating in space waiting for their time to shine.
 
-**create vs create!**
-In addition to knowing how valid and invalid records are treated when creating database entries from an Array of Hashes, we also need to be aware of the difference between `create` and `create!` - they'll matter later. 
+**Return values**
+When creating only valid records `create` will return an Array of valid objects representing the entries that were just created, including their IDs. When creating a combination of valid and invalid records `create` returns all of those records, but the invalid records will have an ID of nil. If all of the records are invalid, `create` will still return an Array of those objects with IDs set to nil.
 
-First of all, what do they return? When creating only valid records, both will return an Array of valid objects representing the entries that were just created. When creating 
+`create!` operates differently. If all of the records are valid, it will return them in an Array with their IDs set. If one record is invalid, it will return nil, even if some of the records were created successfully.
+
+**Errors**
