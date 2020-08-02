@@ -57,7 +57,7 @@ Band.create!([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { n
 It's the same behavior! Well, that makes things a little easier on our brains.
 
 **Model validations**
-Adding model validations changes the behavior of `create`. I added validation checks for both the name and year fields to check for their presence. First let's put the invalid record at the start of the Array:
+Adding model validations fpr the name and year columns changes the behavior of `create`. First let's put the invalid record at the start of the Array:
 ```
 # RADIOHEAD IS INSERTED
 Band.create([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
@@ -65,7 +65,7 @@ Band.create([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
 # RADIOHEAD AND TESTING ARE INSERTED
 Band.create([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222 }])
 ```
-Unlike before, this actually resulted in all valid records being inserted into the database.
+Unlike before, this actually resulted in all valid records being inserted into the database regardless of their location in the Array.
 
 But what about `create!`? Is there a difference?
 ```
@@ -78,14 +78,28 @@ Band.create!([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { n
 This is actually similar to before. As soon as an invalid record was encountered, the process was aborted. The Blah Blahs, sadly, are still floating in space waiting for their time to shine.
 
 **Return values and exceptions**
-When creating only valid records `create` will return an Array of valid objects representing the entries that were just created, including their IDs. When creating a combination of valid and invalid records `create` returns all of those records, but the invalid records will have an ID of nil. If all of the records are invalid, `create` will still return an Array of those objects with IDs set to nil.
+When only column modifiers are present, both `create` and `create!` raise exceptions when any invalid records are present in the Array. As a result, attempting to store the result in a variable will cause the variable to equal nil or its previous value, if it had one. If all of the records are valid, both methods will return an Array of records:
 
-`create!` operates differently. If all of the records are valid, it will return them in an Array with their IDs set. If one record is invalid, regardless of where it's located in the Array, it will raise an exception. If we try to set a variable to the return value of `create!` when it raises an exception, the value stored in that variable will either be nil or its previous value:
 ```
-a = Band.create!([{ name: 'Bandy McBandFace', year: 3000 }, { name: 'not happening' }])
+a = Band.create([{ name: 'Bandy McBandFace', year: 3000 }, { name: 'not happening' }])
 # a => nil
 
 a = 'dance magic dance'
-a = Band.create!([{ name: 'Bandy McBandFace', year: 3000 }, { name: 'not happening' }])
+a = Band.create([{ name: 'Bandy McBandFace', year: 3000 }, { name: 'not happening' }])
 # a => 'dance magic dance'
 ```
+
+When model validations are present and only valid records exist in the Array, `create` will return an Array of valid objects representing the entries that were just created, including their IDs. When creating a combination of valid and invalid records `create` returns all of those records, but the invalid records will have an ID of nil. If all of the records are invalid, `create` will still return an Array of those objects with IDs set to nil.
+
+`create!` operates differently. If all of the records are valid, it will return them in an Array with their IDs set. If one record is invalid, regardless of where it's located in the Array, it will raise an exception. If we try to set a variable to the return value of `create!` when it raises an exception, the value stored in that variable will either be nil or the variable's previous value. `create!`, in other words, behaves just as it does when only column modifiers are present.
+
+**Summary: create vs create!**
+- Both take a Hash or Array of Hashes as an argument.
+- Both return an Array of objects when all records being created are valid.
+- When only column modifers are present, both raise exceptions upon encountering an invalid record and stop inserting any further records. No records are returned.
+- When model validations are present, `create` inserts all valid records and returns an Array of objects. Objects representing invalid records will have IDs set to nil in the returned Array.
+- When model validations are present, `create!` behaves just as it does when no model validations are present.
+
+> Note: the specific exception that's raised differs when handling a failed column validation vs a failed model validation!
+
+
