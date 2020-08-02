@@ -77,9 +77,15 @@ Band.create!([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { n
 ```
 This is actually similar to before. As soon as an invalid record was encountered, the process was aborted. The Blah Blahs, sadly, are still floating in space waiting for their time to shine.
 
-**Return values**
+**Return values and exceptions**
 When creating only valid records `create` will return an Array of valid objects representing the entries that were just created, including their IDs. When creating a combination of valid and invalid records `create` returns all of those records, but the invalid records will have an ID of nil. If all of the records are invalid, `create` will still return an Array of those objects with IDs set to nil.
 
-`create!` operates differently. If all of the records are valid, it will return them in an Array with their IDs set. If one record is invalid, it will return nil, even if some of the records were created successfully.
+`create!` operates differently. If all of the records are valid, it will return them in an Array with their IDs set. If one record is invalid, regardless of where it's located in the Array, it will raise an exception. If we try to set a variable to the return value of `create!` when it raises an exception, the value stored in that variable will either be nil or its previous value:
+```
+a = Band.create!([{ name: 'Bandy McBandFace', year: 3000 }, { name: 'not happening' }])
+# a => nil
 
-**Errors**
+a = 'dance magic dance'
+a = Band.create!([{ name: 'Bandy McBandFace', year: 3000 }, { name: 'not happening' }])
+# a => 'dance magic dance'
+```
