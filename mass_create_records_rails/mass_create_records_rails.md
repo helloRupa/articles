@@ -31,13 +31,52 @@ But the question is: what happens if some of the records in the Array are valid 
 # VALID RECORDS ONLY
 Band.create([{ name: "Nite Fields", year: 2012 }, { name: "Refused", year: 1991 }])
 # ONE INVALID RECORD
-Band.create([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
+Band.create([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222 }])
 ```
-When each Hash contains valid data (passes validations and any database-level checks), the records are created as expected: they are inserted one-at-a-time into the database. When creating a mix of valid and invalid records, we actually get mixed results depending on where the validation checks are occurring.
+When each Hash contains valid data (passes validations and any database-level checks), the records are created as expected: they are inserted one-at-a-time into the database. When creating a mix of valid and invalid records, we actually get mixed results depending on where the invalid data is located in the Array.
 
 **Database-level validations using column modifiers only**
-When we use column modifiers in our migrations, such as `null: false`, but we don't add validations to our models, `create` will only create records if all of the records are valid. A single invalid record will cause a rollback of the entire transaction. In the code above, records would be created for Nite Fields and Refused, but NOT for The Blah Blahs or Radiohead, because my migration required that neither name nor year could be null.
+When we use column modifiers in our migrations, such as `null: false`, but we don't add validations to our models, `create` will abort as soon as an invalid Hash of attributes is encountered in the Array. All records preceding the invalid one will be inserted into the database. For example, if the first Hash in the Array contains invalid data, no records will be inserted. If the middle Hash contains invalid data, every record preceding it will be inserted:
+```
+# NO RECORDS WILL BE INSERTED, FIRST HASH IS INVALID
+Band.create([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
+
+# ONLY RADIOHEAD WILL BE INSERTED
+Band.create([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222 }])
+```
+
+But what if we use `create!` instead. Is the behavior any different? Let's find out:
+```
+# NO RECORDS WILL BE INSERTED, FIRST HASH IS INVALID
+Band.create!([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
+
+# ONLY RADIOHEAD WILL BE INSERTED
+Band.create!([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222  }])
+```
+It's the same behavior! Well, that makes things a little easier on our brains.
 
 **Model validations**
-Adding model validations
+Adding model validations changes the behavior of `create`. I added validation checks for both the name and year fields to check for their presence. First let's put the invalid record at the start of the Array:
+```
+# RADIOHEAD IS INSERTED
+Band.create([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
 
+# RADIOHEAD AND TESTING ARE INSERTED
+Band.create([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222 }])
+```
+Unlike before, this actually resulted in all valid records being inserted into the database.
+
+But what about `create!`? Is there a difference?
+```
+# NOTHING IS INSERTED, ABORTED ON FIRST INVALID RECORD
+Band.create!([{ name: "The Blah Blahs" }, { name: "Radiohead", year: 1985 }])
+
+# RADIOHEAD IS INSERTED, ABORTED ON FIRST INVALID RECORD
+Band.create!([{ name: "Radiohead", year: 1985 }, { name: "The Blah Blahs" }, { name: "Testing", year: 2222 }])
+```
+This is actually similar to before. As soon as an invalid record was encountered, the process was aborted. The Blah Blahs, sadly, are still floating in space waiting for their time to shine.
+
+**create vs create!**
+In addition to knowing how valid and invalid records are treated when creating database entries from an Array of Hashes, we also need to be aware of the difference between `create` and `create!` - they'll matter later. 
+
+First of all, what do they return? When creating only valid records, both will return an Array of valid objects representing the entries that were just created. When creating 
