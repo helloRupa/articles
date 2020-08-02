@@ -1,3 +1,5 @@
+**Still in ideation stage**
+
 # Tips for Integrating Third-Party Code
 Adding functionality to a web app via third-party APIs (or projects) can be challenging, especially when the documentation is lacking. Here are some tips for getting third-party code working while reducing frustration.
 
