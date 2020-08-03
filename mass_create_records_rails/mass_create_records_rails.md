@@ -138,7 +138,7 @@ params = ActionController::Parameters.new(bands)
 # => <ActionController::Parameters {"bands"=>[{"name"=>"Radiohead", "year"=>1985}, {"name"=>"Refused", "year"=>1991}]} permitted: false>
 ```
 
-Now let's try running these parameters through our regular strong parameters method that expects to receive a Hash...just for fun (because there's no chance it's going to work! Look at me knowing what fun is.):
+Now let's try running these parameters through our regular strong parameters method that expects to receive a Hash...just for fun (because there's no chance it's going to work! Look at me knowing what fun is):
 
 ```
 params.require(:band).permit(:name, :year)
@@ -237,7 +237,7 @@ fetch('http://localhost:3000/bands', options)
   .then(res => res.json())
   .then(console.log)
   .catch(console.log)
-// => Array of Hashes representing Band objects with IDs set
+// => Array of Objects representing Band objects with IDs set
 ```
 
 Sending only valid data, resulted in all of our records being created and an Array of data being sent back in response. But what will happen if we send a mix of valid and invalid data?:
@@ -258,7 +258,7 @@ fetch('http://localhost:3000/bands', options)
   .then(res => res.json())
   .then(console.log)
   .catch(console.log)
-// => Array of Hashes representing Band objects with one ID set and one set to null
+// => Array of Objects representing Band objects with one ID set and one set to null
 ```
 
 Both records were returned regardless, but only one was created in the database. On the frontend, we could choose to pinpoint the bad records, fix them, and then resend our request, but I'd prefer to go a different route: let's handle our requests in an all-or-nothing manner. All records must be valid for any insertions to persist. 
