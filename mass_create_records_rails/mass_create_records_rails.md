@@ -347,5 +347,6 @@ class BandsController < ApplicationController
   end
 end
 ```
+[GitHub Repo](https://github.com/helloRupa/mass_create_example)
 
 Why so many words for so little code? I'm a deep sea diver who operates on land. Sometimes I can't help myself.
